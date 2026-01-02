@@ -21,10 +21,22 @@ CORS(app, resources={
 CURRENT_TOKEN = None
 TOKEN_EXPIRY = 0
 QR_IMAGE_BUFFER = None
-CURRENT_SUBJECT = None  # Store current subject
+CURRENT_SUBJECT = None
 
-# Your ngrok URL - UPDATE THIS if ngrok URL changes!
-NGROK_URL = "https://rachitic-despairful-susannah.ngrok-free.dev"
+# Auto-detect backend URL based on environment
+def get_backend_url():
+    if os.getenv('RENDER'):
+        # On Render, construct URL from hostname
+        hostname = os.getenv('RENDER_EXTERNAL_HOSTNAME')
+        return f"https://{hostname}"
+    elif os.getenv('BACKEND_URL'):
+        # Use environment variable if set
+        return os.getenv('BACKEND_URL')
+    else:
+        # Local development
+        return "http://127.0.0.1:5050"
+
+BACKEND_URL = get_backend_url()
 
 APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx6tZEaSMDB4gec-NzK2BqAdJH3MbbM9n2HNhNJv9wob8Uivf0E28y-nYrwp-Kc3zAH/exec"
 
@@ -42,7 +54,15 @@ def save_to_google_sheet(roll, name, subject, token):
 
 @app.route("/")
 def home():
-    return jsonify({"message": "Backend is running!"})
+    return jsonify({
+        "message": "Backend is running!",
+        "backend_url": BACKEND_URL
+    })
+
+@app.route("/config")
+def get_config():
+    """Provide backend URL to frontend"""
+    return jsonify({"backend_url": BACKEND_URL})
 
 @app.route("/teacher.html")
 def teacher_page():
@@ -86,7 +106,6 @@ def serve_js():
 
 @app.route("/generate_token", methods=["GET", "POST", "OPTIONS"])
 def generate_token():
-    # Handle OPTIONS request for CORS preflight
     if request.method == "OPTIONS":
         response = jsonify({"status": "ok"})
         response.headers.add("Access-Control-Allow-Origin", "*")
@@ -96,16 +115,14 @@ def generate_token():
     
     global CURRENT_TOKEN, TOKEN_EXPIRY, QR_IMAGE_BUFFER, CURRENT_SUBJECT
 
-    # Get subject from request data
     data = request.get_json() if request.is_json else {}
-    subject = data.get("subject", "General")  # Default to "General" if not provided
+    subject = data.get("subject", "General")
     
     CURRENT_TOKEN = secrets.token_hex(4)
     TOKEN_EXPIRY = time.time() + 120
-    CURRENT_SUBJECT = subject  # Store the subject
+    CURRENT_SUBJECT = subject
 
-    # Use NGROK_URL for QR code
-    url = f"{NGROK_URL}/attendance?token={CURRENT_TOKEN}"
+    url = f"{BACKEND_URL}/attendance?token={CURRENT_TOKEN}"
     print(f"🔗 Generated QR URL: {url}")
     print(f"📚 Subject: {subject}")
 
@@ -125,7 +142,6 @@ def generate_token():
 
 @app.route("/get_qr", methods=["GET", "OPTIONS"])
 def get_qr():
-    # Handle OPTIONS request for CORS preflight
     if request.method == "OPTIONS":
         response = jsonify({"status": "ok"})
         response.headers.add("Access-Control-Allow-Origin", "*")
@@ -141,7 +157,6 @@ def get_qr():
 
 @app.route("/mark_attendance", methods=["POST", "OPTIONS"])
 def mark_attendance():
-    # Handle OPTIONS request for CORS preflight
     if request.method == "OPTIONS":
         response = jsonify({"status": "ok"})
         response.headers.add("Access-Control-Allow-Origin", "*")
@@ -169,7 +184,6 @@ def mark_attendance():
         response.headers.add("Access-Control-Allow-Origin", "*")
         return response
 
-    # Use the stored subject for this token
     subject = CURRENT_SUBJECT if CURRENT_SUBJECT else "General"
     print(f"💾 Saving to sheet - Subject: {subject}")
     save_to_google_sheet(roll, name, subject, token)
@@ -190,12 +204,10 @@ def attendance_page():
     if not token:
         return "Token missing ❌", 400
 
-    # Use ngrok URL for redirect
-    redirect_url = f"{NGROK_URL}/student.html?token={token}"
+    redirect_url = f"{BACKEND_URL}/student.html?token={token}"
     
     print(f"🔗 Redirecting to: {redirect_url}")
     
-    # Return HTML with JavaScript redirect
     return f'''
     <!DOCTYPE html>
     <html>
@@ -212,7 +224,6 @@ def attendance_page():
     '''
 
 if __name__ == "__main__":
-    # Print directory structure for debugging
     print("\n" + "="*50)
     print("🚀 ATTENDANCE SYSTEM STARTING")
     print("="*50)
@@ -227,11 +238,10 @@ if __name__ == "__main__":
         print("❌ WARNING: frontend folder NOT found!")
         print("Please create a 'frontend' folder and put your HTML/CSS/JS files there")
     
-    print(f"\n🌐 NGROK URL: {NGROK_URL}")
-    print(f"🖥️  Local URL: http://127.0.0.1:5050")
-    print(f"\n📱 Access URL: {NGROK_URL}/teacher.html")
-    print(f"💻 Or local: http://127.0.0.1:5050/teacher.html")
+    print(f"\n🌐 Backend URL: {BACKEND_URL}")
+    print(f"\n📱 Access URL: {BACKEND_URL}/teacher.html")
     print("\n" + "="*50 + "\n")
     
-    # Important: Run on 0.0.0.0 to allow external access via ngrok
-    app.run(debug=True, port=5050, host='0.0.0.0')
+    # Use PORT environment variable for Render
+    port = int(os.getenv('PORT', 5050))
+    app.run(debug=False, port=port, host='0.0.0.0')

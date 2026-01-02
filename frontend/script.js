@@ -1,11 +1,23 @@
-// Backend URL - matches your ngrok URL
-const BACKEND_URL = "https://rachitic-despairful-susannah.ngrok-free.dev";
+// Auto-detect backend URL
+let BACKEND_URL = "";
 
 // Google Sheet ID
 const GOOGLE_SHEET_ID = "1llPlMFvsOfalvXNoOlUMeNW31yCEfAKpOH4Iwpu5B24";
 
-console.log("🔗 Backend URL:", BACKEND_URL);
-console.log("🌐 Current Page:", window.location.href);
+// Initialize backend URL
+async function initBackendURL() {
+  try {
+    // Try to get backend URL from config endpoint
+    const response = await fetch('/config');
+    const data = await response.json();
+    BACKEND_URL = data.backend_url;
+    console.log("✅ Backend URL loaded:", BACKEND_URL);
+  } catch (error) {
+    // Fallback: use current origin
+    BACKEND_URL = window.location.origin;
+    console.log("⚠️ Using fallback URL:", BACKEND_URL);
+  }
+}
 
 // Read token from URL (for student page)
 const params = new URLSearchParams(window.location.search);
@@ -82,7 +94,6 @@ async function generateQR() {
   const qrBox = document.getElementById("qrBox");
   const qrImage = document.getElementById("qrImage");
   
-  // Get subject name from input field
   const subjectInput = document.getElementById("subjectName");
   const subject = subjectInput ? subjectInput.value.trim() : "General";
   
@@ -171,7 +182,6 @@ function openGoogleSheets() {
   const sheetUrl = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/edit`;
   console.log("📊 Opening:", sheetUrl);
   
-  // Open in new tab
   window.open(sheetUrl, '_blank');
 }
 
@@ -215,29 +225,37 @@ function showStatus(message, type) {
   }
 }
 
-// Check if on student page
-if (window.location.pathname.includes("student.html")) {
-  console.log("📄 Student page loaded");
-  if (tokenFromURL) {
-    console.log("✅ Token:", tokenFromURL);
-  } else {
-    console.warn("⚠️ No token in URL");
-    showStatus("⚠️ No token found. Scan the QR code again.", "error");
+// Initialize on page load
+(async function init() {
+  console.log("🚀 Initializing...");
+  console.log("🌐 Current Page:", window.location.href);
+  
+  // Load backend URL
+  await initBackendURL();
+  
+  // Check if on student page
+  if (window.location.pathname.includes("student.html")) {
+    console.log("📄 Student page loaded");
+    if (tokenFromURL) {
+      console.log("✅ Token:", tokenFromURL);
+    } else {
+      console.warn("⚠️ No token in URL");
+      showStatus("⚠️ No token found. Scan the QR code again.", "error");
+    }
   }
-}
-
-// Test connection on load
-console.log("🧪 Testing backend...");
-fetch(`${BACKEND_URL}/`, {
-  headers: {
-    "ngrok-skip-browser-warning": "69420"
+  
+  // Test connection
+  console.log("🧪 Testing backend...");
+  try {
+    const response = await fetch(`${BACKEND_URL}/`, {
+      headers: {
+        "ngrok-skip-browser-warning": "69420"
+      }
+    });
+    const data = await response.json();
+    console.log("✅ Backend connected:", data);
+  } catch (err) {
+    console.error("❌ Backend connection failed:", err);
+    console.error("⚠️ Make sure the backend is running!");
   }
-})
-.then(r => r.json())
-.then(data => {
-  console.log("✅ Backend connected:", data);
-})
-.catch(err => {
-  console.error("❌ Backend connection failed:", err);
-  console.error("⚠️ Make sure Flask and ngrok are running!");
-});
+})();
