@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Attendance - Mark Your Presence</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>👨‍🎓 Student Attendance</h1>
+            <p class="subtitle">Fill in your details to mark attendance</p>
+        </div>
+
+        <form onsubmit="markAttendance(event)" class="attendance-form">
+            <div class="input-group">
+                <label for="studentName">
+                    <span class="label-icon">👤</span>
+                    Student Name
+                </label>
+                <input type="text" id="studentName" placeholder="Enter your full name" required>
+            </div>
+
+            <div class="input-group">
+                <label for="rollNo">
+                    <span class="label-icon">🎫</span>
+                    Roll Number
+                </label>
+                <input type="text" id="rollNo" placeholder="Enter your roll number" required>
+            </div>
+
+            <button type="submit" class="btn-primary">
+                <span class="btn-icon">✓</span>
+                Mark My Attendance
+            </button>
+        </form>
+
+        <div id="status" class="status-message"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

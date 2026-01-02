@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Panel - Attendance System</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>👩‍🏫 Teacher Panel</h1>
+            <p class="subtitle">Generate QR Code for Student Attendance</p>
+        </div>
+
+        <div class="form-section">
+            <div class="input-group">
+                <label for="teacherName">Teacher Name</label>
+                <input type="text" id="teacherName" placeholder="Enter your name" value="Test Teacher">
+            </div>
+
+            <div class="input-group">
+                <label for="subjectName">Subject Name</label>
+                <input type="text" id="subjectName" placeholder="Enter subject name" value="Data Science">
+            </div>
+
+            <button class="btn-primary" onclick="generateQR()">
+                <span class="btn-icon">📱</span>
+                Generate QR Code
+            </button>
+
+            <!-- NEW: Google Sheets Button -->
+            <button class="btn-sheets" onclick="openGoogleSheets()">
+                <span class="btn-icon">📊</span>
+                View Attendance Sheet
+            </button>
+        </div>
+
+        <div id="qrBox" class="qr-container hidden">
+            <div class="qr-header">
+                <h3>✅ QR Code Generated!</h3>
+                <p class="qr-instruction">Students can scan this QR code to mark their attendance</p>
+            </div>
+            
+            <div class="qr-image-wrapper">
+                <img id="qrImage" alt="QR Code for Attendance">
+            </div>
+
+            <div class="qr-info">
+                <div class="info-badge">
+                    <span class="badge-icon">⏰</span>
+                    <span>Valid for 2 minutes</span>
+                </div>
+                <div id="timer" class="timer">2:00</div>
+            </div>
+
+            <button class="btn-secondary" onclick="generateQR()">
+                <span class="btn-icon">🔄</span>
+                Generate New QR
+            </button>
+        </div>
+
+        <div id="status" class="status-message"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
