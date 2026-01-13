@@ -6,6 +6,7 @@ import secrets
 import time
 from io import BytesIO
 import os
+ATTENDANCE_RECORDS = {}
 
 app = Flask(__name__)
 
@@ -155,45 +156,56 @@ def get_qr():
     QR_IMAGE_BUFFER.seek(0)
     return send_file(QR_IMAGE_BUFFER, mimetype="image/png")
 
-@app.route("/mark_attendance", methods=["POST", "OPTIONS"])
+# Track submissions per device
+DEVICE_SUBMISSIONS = {}  # {device_id: [tokens_used]}
+
+@app.route("/mark_attendance", methods=["POST"])
 def mark_attendance():
-    if request.method == "OPTIONS":
-        response = jsonify({"status": "ok"})
-        response.headers.add("Access-Control-Allow-Origin", "*")
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type,ngrok-skip-browser-warning")
-        response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
-        return response, 200
-    
     data = request.get_json()
 
     token = data.get("token")
-    name = data.get("student_name")
     roll = data.get("roll")
+    name = data.get("student_name")
 
-    print(f"📝 Attendance request - Name: {name}, Roll: {roll}, Token: {token}")
-    print(f"🔑 Current valid token: {CURRENT_TOKEN}")
-    print(f"📚 Current subject: {CURRENT_SUBJECT}")
+    if not token or not roll or not name:
+        return jsonify({
+            "status": "error",
+            "message": "Invalid data received ❌"
+        }), 400
 
-    if token != CURRENT_TOKEN:
-        response = jsonify({"status": "error", "message": "Invalid token"})
-        response.headers.add("Access-Control-Allow-Origin", "*")
-        return response
+    # Initialize token records
+    if token not in DEVICE_SUBMISSIONS:
+        DEVICE_SUBMISSIONS[token] = set()
 
-    if time.time() > TOKEN_EXPIRY:
-        response = jsonify({"status": "error", "message": "Token expired"})
-        response.headers.add("Access-Control-Allow-Origin", "*")
-        return response
+    if token not in ATTENDANCE_RECORDS:
+        ATTENDANCE_RECORDS[token] = set()
 
-    subject = CURRENT_SUBJECT if CURRENT_SUBJECT else "General"
-    print(f"💾 Saving to sheet - Subject: {subject}")
-    save_to_google_sheet(roll, name, subject, token)
+    # Device ID (basic proxy prevention)
+    device_id = request.remote_addr + request.headers.get("User-Agent", "")
 
-    response = jsonify({
+    # Same device check
+    if device_id in DEVICE_SUBMISSIONS[token]:
+        return jsonify({
+            "status": "error",
+            "message": "Attendance already marked from this device ⚠️"
+        })
+
+    # Same roll check
+    if roll in ATTENDANCE_RECORDS[token]:
+        return jsonify({
+            "status": "error",
+            "message": "This roll number already marked attendance ⚠️"
+        })
+
+    DEVICE_SUBMISSIONS[token].add(device_id)
+    ATTENDANCE_RECORDS[token].add(roll)
+
+    save_to_google_sheet(roll, name, CURRENT_SUBJECT, token)
+
+    return jsonify({
         "status": "success",
-        "message": f"Attendance marked for {name} ✅"
+        "message": "Attendance marked successfully ✅"
     })
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    return response
 
 @app.route("/attendance", methods=["GET"])
 def attendance_page():
